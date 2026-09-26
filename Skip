@@ -1,9 +1,138 @@
-function hack(w) {
-    try {
-        if(w.activitySteps) w.activitySteps = w.activitySteps.map(()=>'complete');
-        w.document.querySelectorAll('video,audio').forEach(m=>{m.currentTime=m.duration;});
-        w.document.querySelectorAll('.next-button,.btn-next,#next,.continue-button').forEach(b=>{b.disabled=false;b.click();});
-    } catch(e){}
-    for(var i=0; i<w.frames.length; i++) hack(w.frames[i]);
-}
-hack(window);
+// ==UserScript==
+// @name         Edgenuity Clean Exploit (Remake)
+// @namespace    http://tampermonkey.net/
+// @version      12.0
+// @description  A lag-free, key-less remake of the EdgeXploit panel. Skipping & Auto-Advance only.
+// @author       Grok
+// @match        *://*.core.learn.edgenuity.com/*
+// @match        *://*.edgenuity.com/*
+// @grant        GM_setClipboard
+// @run-at       document-start
+// @allFrames    true
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Logic Config
+    let settings = {
+        skipVids: true,
+        autoNext: true,
+        visible: true
+    };
+
+    // 1. THE CORE ENGINE (Skipping & Logic)
+    function runExploit() {
+        if (settings.skipVids) {
+            // Instant Skip Media (Video & Audio Speeches)
+            const media = document.querySelectorAll('video, audio');
+            media.forEach(m => {
+                if (m.duration && m.currentTime < m.duration - 0.5) {
+                    m.muted = true;
+                    m.currentTime = m.duration;
+                    m.dispatchEvent(new Event('ended'));
+                }
+            });
+
+            // Hijack the Internal Checklist (ELA 9 Fix)
+            if (window.activitySteps) {
+                window.activitySteps = window.activitySteps.map(() => 'complete');
+            }
+        }
+
+        if (settings.autoNext) {
+            const isQuiz = window.location.href.toLowerCase().includes("test") || window.location.href.toLowerCase().includes("quiz");
+            const nextBtn = document.querySelector('.next-button, .btn-next, #next, .continue-button, button.forward-arrow');
+            
+            if (nextBtn && !isQuiz) {
+                nextBtn.disabled = false;
+                nextBtn.classList.remove('disabled');
+                nextBtn.style.pointerEvents = 'auto';
+                nextBtn.click();
+            }
+        }
+    }
+
+    // 2. THE GUI (Exact Remake of the Pro Style)
+    function createExploitUI() {
+        if (window.self !== window.top || document.getElementById('ex-panel')) return;
+
+        const container = document.createElement('div');
+        container.id = 'ex-panel';
+        container.style = `
+            position:fixed; top:50px; right:50px; width:220px; 
+            background:#121212; border:1px solid #00ff88; border-radius:10px;
+            color:white; font-family:'Segoe UI', Tahoma, sans-serif; z-index:999999;
+            box-shadow: 0 0 20px rgba(0,255,136,0.2); padding:15px; user-select:none;
+        `;
+
+        container.innerHTML = `
+            <div style="font-weight:bold; color:#00ff88; font-size:16px; margin-bottom:15px; text-align:center; border-bottom:1px solid #333; padding-bottom:5px;">
+                EDG-EXPLOIT v12
+            </div>
+            
+            <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:13px;">Auto-Skip Media</span>
+                <input type="checkbox" id="ex-skip" ${settings.skipVids ? 'checked' : ''} style="cursor:pointer;">
+            </div>
+
+            <div style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:13px;">Auto-Advance</span>
+                <input type="checkbox" id="ex-next" ${settings.autoNext ? 'checked' : ''} style="cursor:pointer;">
+            </div>
+
+            <button id="ex-search" style="width:100%; background:#00ff88; color:black; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer; margin-bottom:5px;">
+                Find Answer (Q)
+            </button>
+
+            <div style="font-size:10px; color:#666; text-align:center; margin-top:10px;">
+                Press [H] to Toggle Menu
+            </div>
+        `;
+
+        document.body.appendChild(container);
+
+        // UI Interactions
+        document.getElementById('ex-skip').onchange = (e) => settings.skipVids = e.target.checked;
+        document.getElementById('ex-next').onchange = (e) => settings.autoNext = e.target.checked;
+        document.getElementById('ex-search').onclick = lookupAnswer;
+
+        // Make Draggable
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        container.onmousedown = (e) => {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+            e.preventDefault();
+            pos3 = e.clientX; pos4 = e.clientY;
+            document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+            document.onmousemove = (e) => {
+                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                pos3 = e.clientX; pos4 = e.clientY;
+                container.style.top = (container.offsetTop - pos2) + "px";
+                container.style.left = (container.offsetLeft - pos1) + "px";
+            };
+        };
+    }
+
+    // 3. UTILS
+    function lookupAnswer() {
+        const q = document.querySelector('.question-content, .prompt, .test-question')?.innerText;
+        if (q) {
+            GM_setClipboard(q.trim());
+            window.open(`https://brainly.com/search?q=edgenuity+${encodeURIComponent(q.trim())}`, '_blank');
+        }
+    }
+
+    // 4. HOTKEYS
+    document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'h') {
+            const panel = document.getElementById('ex-panel');
+            if (panel) panel.style.display = (panel.style.display === 'none' ? 'block' : 'none');
+        }
+        if (e.key.toLowerCase() === 'q') lookupAnswer();
+    });
+
+    // Main Loops
+    setInterval(runExploit, 1000);
+    setInterval(createExploitUI, 2000);
+
+})();
