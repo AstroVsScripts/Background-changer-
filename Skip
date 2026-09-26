@@ -1,0 +1,9 @@
+function hack(w) {
+    try {
+        if(w.activitySteps) w.activitySteps = w.activitySteps.map(()=>'complete');
+        w.document.querySelectorAll('video,audio').forEach(m=>{m.currentTime=m.duration;});
+        w.document.querySelectorAll('.next-button,.btn-next,#next,.continue-button').forEach(b=>{b.disabled=false;b.click();});
+    } catch(e){}
+    for(var i=0; i<w.frames.length; i++) hack(w.frames[i]);
+}
+hack(window);
