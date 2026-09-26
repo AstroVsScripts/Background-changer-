@@ -1,0 +1,72 @@
+// ==UserScript==
+// @name         Edgenuity ELA 9 - The God Mode Script
+// @namespace    http://tampermonkey.net/
+// @version      6.0
+// @description  Skips Intro/Final speeches, Auto-Skips Videos, Unlocks Next Button
+// @author       Grok
+// @match        *://*.core.learn.edgenuity.com/*
+// @match        *://*.edgenuity.com/*
+// @grant        none
+// @run-at       document-start
+// @allFrames    true
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // 1. Target all media (Videos and Audio speeches)
+    function killMedia() {
+        const media = document.querySelectorAll('video, audio');
+        media.forEach(m => {
+            if (m.duration && m.currentTime < m.duration - 0.2) {
+                m.muted = true;
+                m.playbackRate = 16; // Fast-forward speed
+                m.currentTime = m.duration - 0.1; // Jump to the very last frame
+                m.play().catch(()=>{}); 
+            }
+        });
+    }
+
+    // 2. Target and Click all "Next" style buttons
+    function forceAdvance() {
+        // List of all buttons Edgenuity uses in the ELA 9 layout
+        const buttonSelectors = [
+            '.next-button', 
+            '.btn-next', 
+            '#next', 
+            '.footnavnav.next', 
+            '[aria-label*="Next"]',
+            '.play-button.inline-play', // Sometimes used for intros
+            '.continue-button',
+            'button.forward-arrow'
+        ];
+
+        buttonSelectors.forEach(selector => {
+            const buttons = document.querySelectorAll(selector);
+            buttons.forEach(btn => {
+                // Remove the "disabled" lock
+                btn.disabled = false;
+                btn.classList.remove('disabled');
+                btn.style.opacity = "1";
+                btn.style.display = "block";
+                
+                // Only click if the media is actually at the end
+                btn.click();
+            });
+        });
+    }
+
+    // 3. Special ELA 9 Logic: Detect "Intro" or "Final" text in the UI
+    function skipELAOverlays() {
+        const overlays = document.querySelectorAll('.stage-overlay, .intro-overlay, .final-overlay');
+        overlays.forEach(o => o.remove()); // Delete the overlay that prevents clicking
+    }
+
+    // Run every 500ms (faster response time)
+    setInterval(() => {
+        killMedia();
+        forceAdvance();
+        skipELAOverlays();
+    }, 500);
+
+})();
